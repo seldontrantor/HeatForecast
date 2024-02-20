@@ -26,7 +26,7 @@ The project includes the following main components:
 *  Visualization: Visualization of model predictions compared to ground truth values, allowing for easy interpretation of model performance.
 
 
-![Forecast Examples](weights/08-Feb-2024-13-32-35/All.png)
+![Forecast Examples](Metrics/testset.png)
 
 
 ## Prerequisites
