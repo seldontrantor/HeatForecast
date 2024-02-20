@@ -123,7 +123,7 @@ The repository has the following structure:
 
 ## Contributors
 
-[Amin Darbandi](amin.darbandi@aol.com)
+[Amin Darbandi](mailto:amin.darbandi@aol.com)
 
 ## License
 
