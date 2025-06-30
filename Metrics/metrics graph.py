@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Amin Darbandi
+AminDar @Github
 """
 import pandas as pd
 import numpy as np

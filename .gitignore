@@ -1,0 +1,34 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Virtual environments
+venv/
+env/
+*.env
+
+# PyCharm project files
+.idea/
+
+# Logs and temp files
+*.log
+*.tmp
+
+# Tranings
+\weights
+\logs
+\Metrics
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Ignore all .jpg images
+*.jpg
+*.svg
+*.pdf
+*.png
