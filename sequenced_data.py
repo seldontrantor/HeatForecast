@@ -7,7 +7,12 @@ Created on Mon Jul 10 13:58:01 2023
 import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
-from load_and_norm import df_norm_train, df_norm_test, df_norm_val
+from load_and_norm import load_and_normalize
+
+# Load and normalize dataset explicitly
+train_dfs, test_dfs, val_dfs, df_norm_train, df_norm_test, df_norm_val, _ = load_and_normalize(
+    'datasets/df_sin_cosing.csv', columns_to_normalize=['Demand', 'Temp']
+)
 
 class SequencedData():
     def __init__(self, input_width, label_width, SHIFT, train_df, test_df, val_df,

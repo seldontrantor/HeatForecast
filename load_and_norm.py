@@ -1,7 +1,7 @@
+import os
 import pandas as pd
 import seaborn as sns
 from sklearn.preprocessing import MinMaxScaler
-import os
 
 sns.set_theme(style="dark")
 sns.set(rc={"figure.figsize": (16, 8), "figure.dpi": 300})
@@ -62,11 +62,61 @@ def norm_data(train_df, test_df, val_df, scaler, normalize_all_features=True, co
 
     return df_norm_train, df_norm_test, df_norm_val, scaler
 
-df_norm_train, df_norm_test, df_norm_val, scaler = norm_data(
-    train_dfs,
-    test_dfs,
-    val_dfs,
-    mm,
-    normalize_all_features = False,
-    columns_to_normalize=normalized_x)
+def load_and_normalize(dataset_path: str,
+                       future_importance: bool = True,
+                       normalize_all_features: bool = False,
+                       columns_to_normalize=None,
+                       train_size: int = 8760,
+                       val_size: int = 8760,
+                       scaler=None):
+    """Load a dataset, split it and normalize selected columns.
 
+    Returns
+    -------
+    tuple
+        (train_dfs, test_dfs, val_dfs, df_norm_train, df_norm_test, df_norm_val, scaler)
+    """
+
+    assert os.path.exists(dataset_path), f"File not found: {dataset_path}"
+
+    df = pd.read_csv(dataset_path, parse_dates=[0, 15], index_col=0)
+    df.drop(['date', 'weekday'], axis=1, inplace=True)
+    df = df.astype('float64')
+
+    if future_importance:
+        df.drop([
+            'quarter', 'sin_dow', 'cos_dow', 'sin_dom', 'cos_dom', 'sin_year',
+            'cos_year', 'solar', 'Holidays', 'wind', 'humid', 'sin_doy', 'cos_doy',
+            'sin_month', 'cos_month', 'sin_woy', 'cos_woy'
+        ], axis=1, inplace=True)
+
+    train_dfs = df.iloc[:train_size, :]
+    val_dfs = df.iloc[train_size: train_size + val_size, :]
+    test_dfs = df.iloc[train_size + val_size:, :]
+
+    if scaler is None:
+        scaler = MinMaxScaler()
+
+    df_norm_train, df_norm_test, df_norm_val, scaler = norm_data(
+        train_dfs,
+        test_dfs,
+        val_dfs,
+        scaler,
+        normalize_all_features=normalize_all_features,
+        columns_to_normalize=columns_to_normalize,
+    )
+
+    return train_dfs, test_dfs, val_dfs, df_norm_train, df_norm_test, df_norm_val, scaler
+
+
+def main():
+    dataset_path = os.path.join('datasets', 'df_sin_cosing.csv')
+    results = load_and_normalize(dataset_path, columns_to_normalize=['Demand', 'Temp'])
+    train_dfs, test_dfs, val_dfs, df_norm_train, df_norm_test, df_norm_val, _ = results
+    print('Train set shape:', train_dfs.shape)
+    print('Validation set shape:', val_dfs.shape)
+    print('Test set shape:', test_dfs.shape)
+
+
+if __name__ == '__main__':
+    main()

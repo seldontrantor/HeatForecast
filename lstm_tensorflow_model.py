@@ -12,11 +12,16 @@ from keras.models import Model
 from keras.layers import LSTM, Dense, Input
 from keras.callbacks import EarlyStopping, ModelCheckpoint, TensorBoard
 from sequenced_data import Window_Gen, windowed_train, windowed_test, windowed_val, input_shape, output_shape, BATCH_SIZE
-from load_and_norm import train_dfs, test_dfs, val_dfs, scaler
+from load_and_norm import load_and_normalize
 from utils.lstm_utils import save_model_artifacts, plot_training_history, evaluate_model
 
 sns.set_theme(style="dark")
 sns.set(rc={"figure.figsize": (16, 8), "figure.dpi": 300})
+
+# Load and normalize dataset explicitly for saving artifacts
+train_dfs, test_dfs, val_dfs, df_norm_train, df_norm_test, df_norm_val, scaler = load_and_normalize(
+    'datasets/df_sin_cosing.csv', columns_to_normalize=['Demand', 'Temp']
+)
 
 n_units = 50
 learning_rate = 0.0013
