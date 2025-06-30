@@ -109,14 +109,13 @@ def load_and_normalize(dataset_path: str,
     return train_dfs, test_dfs, val_dfs, df_norm_train, df_norm_test, df_norm_val, scaler
 
 
-def main():
-    dataset_path = os.path.join('datasets', 'df_sin_cosing.csv')
-    results = load_and_normalize(dataset_path, columns_to_normalize=['Demand', 'Temp'])
-    train_dfs, test_dfs, val_dfs, df_norm_train, df_norm_test, df_norm_val, _ = results
-    print('Train set shape:', train_dfs.shape)
-    print('Validation set shape:', val_dfs.shape)
-    print('Test set shape:', test_dfs.shape)
+dataset_path = os.path.join('datasets', 'df_sin_cosing.csv')
+train_dfs, test_dfs, val_dfs, df_norm_train, df_norm_test, df_norm_val, scaler = load_and_normalize(
+    dataset_path, columns_to_normalize=['Demand', 'Temp']
+)
 
 
 if __name__ == '__main__':
-    main()
+    print('Train set shape:', train_dfs.shape)
+    print('Validation set shape:', val_dfs.shape)
+    print('Test set shape:', test_dfs.shape)
