@@ -31,8 +31,6 @@ The repository is not packaged for direct installation but all code can be execu
 
    ```bash
    pip install -r requirements.txt
-   # optional: development helpers
-   pip install -r requirements-dev.txt
    ```
 
 3. **Prepare data**
