@@ -1,17 +1,68 @@
-from sklearn.metrics import r2_score
+import os
+from sklearn.metrics import r2_score, mean_absolute_percentage_error, mean_squared_error, mean_absolute_error
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 import tensorflow as tf
-from sequenced_data import  windowed_train, windowed_test, windowed_val
-
+from sequenced_data import windowed_test
+import argparse
 
 sns.set_theme(style="dark")
 sns.set(rc={"figure.figsize": (16, 8), "figure.dpi": 300})
 
-model_path = "weights/30-Jun-2025-15-37-15/whole_model.keras"
 
-def main():
+def calculate_smape_numpy(y_true: np.ndarray, y_pred: np.ndarray) -> float:
+    """Return SMAPE value in percent using NumPy arrays."""
+    y_true = np.asarray(y_true, dtype=float)
+    y_pred = np.asarray(y_pred, dtype=float)
+    denominator = np.abs(y_true) + np.abs(y_pred)
+    denominator = np.where(denominator == 0, np.finfo(float).eps, denominator)
+    smape = np.mean(2.0 * np.abs(y_pred - y_true) / denominator) * 100
+    return smape
+
+
+def calculate_cv_rmse(y_true: np.ndarray, y_pred: np.ndarray) -> float:
+    """Return the coefficient of variation of RMSE in percent."""
+    y_true = np.asarray(y_true, dtype=float)
+    y_pred = np.asarray(y_pred, dtype=float)
+    rmse = np.sqrt(np.mean((y_true - y_pred) ** 2))
+    mean_obs = np.mean(y_true)
+    if mean_obs == 0:
+        return np.nan
+    return (rmse / mean_obs) * 100
+
+def get_latest_model_path(weights_dir: str = "weights") -> str:
+    """Return path to the latest saved model inside ``weights_dir``.
+
+    Parameters
+    ----------
+    weights_dir : str
+        Directory containing timestamped subfolders with ``whole_model.keras``.
+
+    Returns
+    -------
+    str
+        Absolute path to the most recently modified ``whole_model.keras`` file.
+    """
+    if not os.path.isdir(weights_dir):
+        raise FileNotFoundError(f"No weights directory found at {weights_dir}")
+
+    subdirs = [
+        os.path.join(weights_dir, d)
+        for d in os.listdir(weights_dir)
+        if os.path.isdir(os.path.join(weights_dir, d))
+    ]
+    if not subdirs:
+        raise FileNotFoundError(f"No model directories found in {weights_dir}")
+
+    latest_dir = max(subdirs, key=os.path.getmtime)
+    candidate = os.path.join(latest_dir, "whole_model.keras")
+    if not os.path.exists(candidate):
+        raise FileNotFoundError(f"Model not found at {candidate}")
+    return candidate
+
+
+def main(model_path:str):
 
     model = tf.keras.models.load_model(model_path)
     all_predictions = []
@@ -33,13 +84,21 @@ def main():
     
     # Flatten the arrays to have shape (num_samples, num_time_steps)
     flattened_predictions = all_predictions.reshape(-1, all_predictions.shape[-1])
-    flattened_truth = all_truth.reshape(-1,1)
-    np.savetxt(f"Metrics/{model_path[8:-18]}_flattened_truth.csv", flattened_truth, delimiter=',')
-    np.savetxt( f"Metrics/{model_path[8:-18]}_flattened_predictions.csv", flattened_predictions, delimiter=',')
+    flattened_truth = all_truth.reshape(-1, 1)
+    run_name = os.path.basename(os.path.dirname(model_path))
+    np.savetxt(
+        f"Metrics/{run_name}_flattened_truth.csv",
+        flattened_truth,
+        delimiter=",",
+    )
+    np.savetxt(
+        f"Metrics/{run_name}_flattened_predictions.csv",
+        flattened_predictions,
+        delimiter=",",
+    )
     # Calculate R^2 score
     r2 = r2_score(flattened_truth, flattened_predictions)
     print(f'R^2 Score for the entire test set: {r2}')
-
     predictions = []
     true_val = []
     # Iterate over the test set and make predictions
@@ -90,4 +149,13 @@ def main():
     plt.show()
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description="Predict heat demand using a saved model")
+    parser.add_argument(
+        "--model-path",
+        type=str,
+        default=None,
+        help="Path to the trained Keras model (default: latest in weights/)",
+    )
+    args = parser.parse_args()
+    selected_model = args.model_path or get_latest_model_path()
+    main(selected_model)
