@@ -52,10 +52,6 @@ test_dfs = df.iloc[8760 * 2 :, :]
 normalized_x = ["Demand", "Temp"]
 scaler = MinMaxScaler()
 
-# MinMax as scaler
-mm = MinMaxScaler()
-
-
 def norm_data(
     train_df,
     test_df,
