@@ -15,10 +15,10 @@ env/
 *.log
 *.tmp
 
-# Tranings
-\weights
-\logs
-\Metrics
+# Training directories
+weights/
+logs/
+Metrics/
 
 # OS files
 .DS_Store
