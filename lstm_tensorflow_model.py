@@ -11,17 +11,11 @@ import tensorflow as tf
 from keras.models import Model
 from keras.layers import LSTM, Dense, Input
 from keras.callbacks import EarlyStopping, ModelCheckpoint, TensorBoard
-from sequenced_data import Window_Gen, windowed_train, windowed_test, windowed_val, input_shape, output_shape, BATCH_SIZE
-from load_and_norm import load_and_normalize
+from sequenced_data import load_default_data
 from utils.lstm_utils import save_model_artifacts, plot_training_history, evaluate_model
 
 sns.set_theme(style="dark")
 sns.set(rc={"figure.figsize": (16, 8), "figure.dpi": 300})
-
-# Load and normalize dataset explicitly for saving artifacts
-train_dfs, test_dfs, val_dfs, df_norm_train, df_norm_test, df_norm_val, scaler = load_and_normalize(
-    'datasets/df_sin_cosing.csv', columns_to_normalize=['Demand', 'Temp']
-)
 
 n_units = 50
 learning_rate = 0.0013
@@ -60,45 +54,54 @@ def define_models_dense(input_shape, output_shape, n_units=n_units):
     decoder_model = Model([decoder_inputs] + decoder_states_inputs, [decoder_outputs, state_h, state_c])
 
     return model, encoder_model, decoder_model
+def main():
+    data = load_default_data()
+    Window_Gen = data["Window_Gen"]
+    windowed_train = data["windowed_train"]
+    windowed_val = data["windowed_val"]
+    windowed_test = data["windowed_test"]
+    input_shape = data["input_shape"]
+    output_shape = data["output_shape"]
+    BATCH_SIZE = data["BATCH_SIZE"]
+    scaler = data["scaler"]
 
-model, encoder_model, decoder_model = define_models_dense(input_shape, output_shape)
+    model, encoder_model, decoder_model = define_models_dense(input_shape, output_shape)
 
-model.compile(
-    optimizer=tf.optimizers.Adam(learning_rate=lr_schedule),
-    loss=loss_fun,
-    metrics=['mse', tf.keras.metrics.MeanAbsoluteError(), tf.keras.metrics.RootMeanSquaredError()]
-)
+    model.compile(
+        optimizer=tf.optimizers.Adam(learning_rate=lr_schedule),
+        loss=loss_fun,
+        metrics=['mse', tf.keras.metrics.MeanAbsoluteError(), tf.keras.metrics.RootMeanSquaredError()]
+    )
 
-model.summary()
-run_time = datetime.datetime.now().strftime("%d-%b-%Y-%H-%M-%S")
-os.makedirs(os.path.join("weights", run_time), exist_ok=True)
+    model.summary()
+    run_time = datetime.datetime.now().strftime("%d-%b-%Y-%H-%M-%S")
+    os.makedirs(os.path.join("weights", run_time), exist_ok=True)
 
-callbacks_list = [
-    TensorBoard(log_dir=os.path.join("logs", run_time), histogram_freq=1, profile_batch='10,30'),
-    ModelCheckpoint(os.path.join("weights", run_time,
-                                 "weights-improvement-{epoch:02d}-{loss:.2f}.keras"),
-                    monitor='loss',
-                    verbose=1,
-                    save_best_only=False,  # Save after every epoch
-                    mode='min' ), # Use 'min' since we want to minimize the loss
-    EarlyStopping(monitor='loss', patience=8) # Stop early if loss doesn't improve
-]
+    callbacks_list = [
+        TensorBoard(log_dir=os.path.join("logs", run_time), histogram_freq=1, profile_batch='10,30'),
+        ModelCheckpoint(os.path.join("weights", run_time, "weights-improvement-{epoch:02d}-{loss:.2f}.keras"), monitor='loss', verbose=1, save_best_only=False, mode='max'),
+        EarlyStopping(monitor='loss', patience=8)
+    ]
 
-nEpoch = 3
-history = model.fit(windowed_train, epochs=nEpoch, validation_data=windowed_val, verbose=True,
-                    shuffle=False, callbacks=callbacks_list)
+    nEpoch = 3
+    history = model.fit(windowed_train, epochs=nEpoch, validation_data=windowed_val, verbose=True,
+                        shuffle=False, callbacks=callbacks_list)
 
-plot_training_history(history)
+    plot_training_history(history)
 
-save_model_artifacts(
-    model=model,
-    scaler=scaler,
-    history=history,
-    output_shape=output_shape,
-    batch_size=BATCH_SIZE,
-    nEpoch=nEpoch,
-    run_time=run_time
-)
+    save_model_artifacts(
+        model=model,
+        scaler=scaler,
+        history=history,
+        output_shape=output_shape,
+        batch_size=BATCH_SIZE,
+        nEpoch=nEpoch,
+        run_time=run_time
+    )
 
-evaluate_model(model, windowed_test, plot_fn=Window_Gen.plot, take=1)
-plt.show()
+    evaluate_model(model, windowed_test, plot_fn=Window_Gen.plot, take=1)
+    plt.show()
+
+
+if __name__ == "__main__":
+    main()

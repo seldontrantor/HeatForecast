@@ -1,35 +1,19 @@
 import os
-from sklearn.metrics import r2_score, mean_absolute_percentage_error, mean_squared_error, mean_absolute_error
+import argparse
+from sklearn.metrics import r2_score, mean_absolute_error, mean_squared_error, mean_absolute_percentage_error
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 import tensorflow as tf
-from sequenced_data import windowed_test
-import argparse
+from sequenced_data import load_default_data
+
+
 
 sns.set_theme(style="dark")
 sns.set(rc={"figure.figsize": (16, 8), "figure.dpi": 300})
 
 
-def calculate_smape_numpy(y_true: np.ndarray, y_pred: np.ndarray) -> float:
-    """Return SMAPE value in percent using NumPy arrays."""
-    y_true = np.asarray(y_true, dtype=float)
-    y_pred = np.asarray(y_pred, dtype=float)
-    denominator = np.abs(y_true) + np.abs(y_pred)
-    denominator = np.where(denominator == 0, np.finfo(float).eps, denominator)
-    smape = np.mean(2.0 * np.abs(y_pred - y_true) / denominator) * 100
-    return smape
-
-
-def calculate_cv_rmse(y_true: np.ndarray, y_pred: np.ndarray) -> float:
-    """Return the coefficient of variation of RMSE in percent."""
-    y_true = np.asarray(y_true, dtype=float)
-    y_pred = np.asarray(y_pred, dtype=float)
-    rmse = np.sqrt(np.mean((y_true - y_pred) ** 2))
-    mean_obs = np.mean(y_true)
-    if mean_obs == 0:
-        return np.nan
-    return (rmse / mean_obs) * 100
 
 def get_latest_model_path(weights_dir: str = "weights") -> str:
     """Return path to the latest saved model inside ``weights_dir``.
@@ -62,94 +46,128 @@ def get_latest_model_path(weights_dir: str = "weights") -> str:
     return candidate
 
 
-def main(model_path:str):
+def calculate_smape_numpy(y_true: np.ndarray, y_pred: np.ndarray) -> float:
+    """Return SMAPE value in percent using NumPy arrays."""
+    y_true = np.asarray(y_true, dtype=float)
+    y_pred = np.asarray(y_pred, dtype=float)
+    denominator = np.abs(y_true) + np.abs(y_pred)
+    denominator = np.where(denominator == 0, np.finfo(float).eps, denominator)
+    smape = np.mean(2.0 * np.abs(y_pred - y_true) / denominator) * 100
+    return smape
+
+
+def calculate_cv_rmse(y_true: np.ndarray, y_pred: np.ndarray) -> float:
+    """Return the coefficient of variation of RMSE in percent."""
+    y_true = np.asarray(y_true, dtype=float)
+    y_pred = np.asarray(y_pred, dtype=float)
+    rmse = np.sqrt(np.mean((y_true - y_pred) ** 2))
+    mean_obs = np.mean(y_true)
+    if mean_obs == 0:
+        return np.nan
+    return (rmse / mean_obs) * 100
+
+def main(model_path: str):
+    data = load_default_data()
+    input_len = data["input_len"]
+    forecast_len = data["forecast_len"]
+    df_test = data["df_norm_test"]
 
     model = tf.keras.models.load_model(model_path)
+
     all_predictions = []
     all_truth = []
-    # Iterate through all takes in the test set
-    for data in windowed_test:
-        (past_inputs, future_inputs), truth = data
-        
-        # Make predictions using the model
-        predictions = model.predict([past_inputs, future_inputs])
-        
-        # Convert to NumPy arrays and append to lists
-        all_predictions.append(predictions[0])
-        all_truth.append(np.array(truth[0]))
-    
-    # Convert lists to NumPy arrays for easier manipulation
+    metrics_per_24h = []
+    test_len = len(df_test)
+
+    for start in range(0, test_len - input_len - forecast_len + 1, forecast_len):
+        end = start + input_len
+        next_end = end + forecast_len
+
+        # Extract the past window_len data points
+        past_window = df_test[start:end]
+        future_window = df_test[end:next_end]
+
+        # Reshape the data to fit the model's input shape
+        past_window_input = past_window.values.reshape((1, input_len, past_window.shape[1]))
+
+        # Extract future deterministic features for the forecast period
+        future_inputs = future_window.iloc[:, 1:]
+        future_inputs = future_inputs.values.reshape((1, forecast_len, future_inputs.shape[1]))
+
+        # Make predictions
+        predictions = model.predict([past_window_input, future_inputs])
+
+        # Flatten predictions and store them
+        predictions = predictions.flatten()
+        all_predictions.extend(predictions)
+        truth = future_window['Demand'].values.flatten()  # Assuming 'Demand' is the target variable
+        all_truth.extend(truth)
+
+        # Calculate metrics for this 24-hour prediction set
+        mse = mean_squared_error(truth, predictions)
+        mae = mean_absolute_error(truth, predictions)
+        r2 = r2_score(truth, predictions)
+        mape = mean_absolute_percentage_error(truth, predictions)
+        smape = calculate_smape_numpy(truth, predictions)
+        cv_rmse = calculate_cv_rmse(truth, predictions)
+        rsmess = np.sqrt(np.mean((truth - predictions) ** 2))
+
+        metrics_per_24h.append(
+            {
+            'start': start,
+            'end': next_end,
+            'MSE': mse,
+            'MAE': mae,
+            'R2': r2,
+            'MAPE': mape,
+            'SMAPE': smape,
+            'CV-RSME': cv_rmse,
+            'RSME': rsmess
+            }
+            )
+
+    # Convert predictions and truth values to numpy arrays for evaluation
     all_predictions = np.array(all_predictions)
     all_truth = np.array(all_truth)
-    
-    # Flatten the arrays to have shape (num_samples, num_time_steps)
-    flattened_predictions = all_predictions.reshape(-1, all_predictions.shape[-1])
-    flattened_truth = all_truth.reshape(-1, 1)
-    run_name = os.path.basename(os.path.dirname(model_path))
-    np.savetxt(
-        f"Metrics/{run_name}_flattened_truth.csv",
-        flattened_truth,
-        delimiter=",",
-    )
-    np.savetxt(
-        f"Metrics/{run_name}_flattened_predictions.csv",
-        flattened_predictions,
-        delimiter=",",
-    )
-    # Calculate R^2 score
-    r2 = r2_score(flattened_truth, flattened_predictions)
-    print(f'R^2 Score for the entire test set: {r2}')
-    predictions = []
-    true_val = []
-    # Iterate over the test set and make predictions
-    for i, sequence in enumerate(windowed_test):
-        (past, future), truth = sequence
-        prediction = model.predict([past, future])
-        predictions.append(prediction)
-        true_val.append(truth)
-    
-    # Shift predictions to handle duplicates caused by sequential data
-    shifted_predictions = []
-    shifted_truth = []
-    # Iterate over the predictions
-    for i in range(len(predictions) - 1):
-        # Append the last prediction of each sequence
-        shifted_predictions.append(predictions[i][-1])
-        shifted_truth.append(true_val[i][-1])
-    
-    # Append the last prediction of the last sequence
-    shifted_predictions.append(predictions[-1][-1])
-    shifted_truth.append(true_val[-1][-1])
-    # Overwrite duplicated values
-    unique_predictions = [shifted_predictions[0]]
-    unique_true = [shifted_truth[0]]
+    # Overall metrics
+    overall_mse = mean_squared_error(all_truth, all_predictions)
+    overall_mae = mean_absolute_error(all_truth, all_predictions)
+    overall_r2 = r2_score(all_truth, all_predictions)
+    overall_mape = mean_absolute_percentage_error(all_truth, all_predictions)
+    overall_smape = calculate_smape_numpy(all_truth, all_predictions)
+    overall_cv_rsme = calculate_cv_rmse(all_truth, all_predictions)
+    overall_rsme = np.sqrt(np.mean((all_truth - all_predictions) ** 2))
 
-    for i in range(1, len(shifted_predictions)):
-        # Compare arrays element-wise
-        if not np.array_equal(shifted_predictions[i], unique_predictions[-1]):
-            unique_predictions.append(shifted_predictions[i])
-            
-    for i in range(1, len(shifted_predictions)):
-        # Compare arrays element-wise
-        if not np.array_equal(shifted_truth[i], unique_true[-1]):
-            unique_true.append(shifted_truth[i])
-    
-    
-    all_predictions = np.concatenate(unique_predictions, axis=0)
-    all_truth = np.concatenate(unique_true, axis=0)
-    np.savetxt('s.csv',all_predictions,  delimiter=',')
-    np.savetxt('t.csv', all_truth, delimiter=',')
-    fig, ax = plt.subplots()
-    ax.plot(all_predictions, label='Predictions',c='#ff7f0e')
-    ax.plot(all_truth,label='True values', c='#2ca02c')
-    plt.xlabel('time index')
-    plt.ylabel('Demand Normed')
-    plt.legend()
-    plt.title(f"{model_path} and R^2: {np.round(r2,4)}")
+    metrics_overall = {
+        "overall_mse": overall_mse,
+        "overall_mae": overall_mae,
+        "overall_rmse":  overall_rsme,
+        "overall_mape": overall_mape,
+        "overall_smape": overall_smape,
+        "overall_cv_rmse": overall_cv_rsme,
+        "r2": overall_r2
+    }
+
+    # Convert metrics_per_24h to DataFrame for easier analysis and visualization
+    df_metrics_24 = pd.DataFrame(metrics_per_24h)
+    overall_metrics = pd.DataFrame(metrics_overall, index=[0])
+
+    metric_file = model_path.split('/')[1]
+    metric_file = metric_file.strip().replace(" ", "_")
+
+    os.makedirs("Metrics", exist_ok=True)
+    df_metrics_24.to_csv(os.path.join("Metrics", f"evaluation_metrics_per24_{metric_file}.csv"), index=True)
+    overall_metrics.to_csv(os.path.join("Metrics", f'overall_metrics_{metric_file}.csv'), index=True)
+
+    df_metrics_24.plot(x='start', y=['MSE', 'MAE', 'R2'], subplots=True, figsize=(12, 8),
+                    title='Evaluation Metrics for Each 24-Hour Prediction Set')
     plt.show()
 
+
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Predict heat demand using a saved model")
+    parser = argparse.ArgumentParser(
+        description="Predict heat demand using a saved model"
+    )
     parser.add_argument(
         "--model-path",
         type=str,

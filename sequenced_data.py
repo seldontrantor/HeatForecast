@@ -9,11 +9,6 @@ import tensorflow as tf
 import matplotlib.pyplot as plt
 from load_and_norm import load_and_normalize
 
-# Load and normalize dataset explicitly
-train_dfs, test_dfs, val_dfs, df_norm_train, df_norm_test, df_norm_val, _ = load_and_normalize(
-    'datasets/df_sin_cosing.csv', columns_to_normalize=['Demand', 'Temp']
-)
-
 class SequencedData():
     def __init__(self, input_width, label_width, SHIFT, train_df, test_df, val_df,
                  label_columns, BATCH_SIZE, input_start, n_supplementary_features, SHUFFLE=False):
@@ -114,31 +109,60 @@ class SequencedData():
                 plt.title(f' Predictions for the take number: {title}')
         plt.xlabel('Time [h]')
 
-# Instantiate and inspect data shapes
-BATCH_SIZE = 32
-Window_Gen = SequencedData(
-    input_width=24*2*7,
-    label_width=24,
-    SHIFT=1,
-    train_df=df_norm_train,
-    test_df=df_norm_test,
-    val_df=df_norm_val,
-    label_columns=['Demand'],
-    BATCH_SIZE=BATCH_SIZE,
-    input_start=1,
-    n_supplementary_features=len(['Demand']),
-    SHUFFLE=True)
+def load_default_data():
+    """Return preconfigured ``SequencedData`` and windowed datasets."""
+    train_dfs, test_dfs, val_dfs, df_norm_train, df_norm_test, df_norm_val, scaler = load_and_normalize(
+        'datasets/df_sin_cosing.csv', columns_to_normalize=['Demand', 'Temp']
+    )
 
-windowed_train = Window_Gen.train()
-windowed_val = Window_Gen.val()
-windowed_test = Window_Gen.test()
+    BATCH_SIZE = 32
+    Window_Gen = SequencedData(
+        input_width=24,
+        label_width=24,
+        SHIFT=1,
+        train_df=df_norm_train,
+        test_df=df_norm_test,
+        val_df=df_norm_val,
+        label_columns=['Demand'],
+        BATCH_SIZE=BATCH_SIZE,
+        input_start=1,
+        n_supplementary_features=len(['Demand']),
+        SHUFFLE=True,
+    )
 
-for (enc, dec_in), dec_out in windowed_train.take(1):
-    print('All shapes are: (batch, time, features)')
-    print(f'Encoder inputs shape: {enc.shape}')
-    print(f'Decoder inputs shape: {dec_in.shape}')
-    print(f'Decoder outputs shape: {dec_out.shape}')
-    print("-*-*-*-*-*")
+    windowed_train = Window_Gen.train()
+    windowed_val = Window_Gen.val()
+    windowed_test = Window_Gen.test()
+    input_len = Window_Gen.input_width
+    forecast_len = Window_Gen.label_width
+    input_shape = windowed_train.element_spec[0][0].shape[1:]
+    output_shape = windowed_train.element_spec[0][1].shape[1:]
 
-input_shape = enc.shape[1:]
-output_shape = dec_in.shape[1:]
+    return {
+        "Window_Gen": Window_Gen,
+        "windowed_train": windowed_train,
+        "windowed_val": windowed_val,
+        "windowed_test": windowed_test,
+        "input_shape": input_shape,
+        "output_shape": output_shape,
+        "BATCH_SIZE": BATCH_SIZE,
+        "input_len": input_len,
+        "forecast_len": forecast_len,
+        "df_norm_train": df_norm_train,
+        "df_norm_test": df_norm_test,
+        "df_norm_val": df_norm_val,
+        "scaler": scaler,
+    }
+
+if __name__ == "__main__":
+    data = load_default_data()
+    Window_Gen = data["Window_Gen"]
+    print("Input length: ", data["input_len"])
+    print("Forecast length: ", data["forecast_len"])
+    print("Batch size: ", data["BATCH_SIZE"])
+    print("Total features: ", Window_Gen.total_features)
+    print("Determanistic features: ", Window_Gen.determanistic_feature)
+    print("Label columns: ", Window_Gen.label_columns)
+    print("Label columns indices: ", Window_Gen.label_columns_indices)
+    print("Column indices: ", Window_Gen.column_indices)
+    print("Total window size: ", Window_Gen.total_window_size)
