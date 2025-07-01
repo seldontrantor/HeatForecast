@@ -6,7 +6,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 import tensorflow as tf
-from sequenced_data import df_norm_test, input_len, forecast_len
+from sequenced_data import load_default_data
+
 
 
 sns.set_theme(style="dark")
@@ -65,7 +66,11 @@ def calculate_cv_rmse(y_true: np.ndarray, y_pred: np.ndarray) -> float:
         return np.nan
     return (rmse / mean_obs) * 100
 
-def main(model_path: str, input_len=input_len, forecast_len=forecast_len, df_test=df_norm_test):
+def main(model_path: str):
+    data = load_default_data()
+    input_len = data["input_len"]
+    forecast_len = data["forecast_len"]
+    df_test = data["df_norm_test"]
 
     model = tf.keras.models.load_model(model_path)
 
@@ -104,7 +109,7 @@ def main(model_path: str, input_len=input_len, forecast_len=forecast_len, df_tes
         r2 = r2_score(truth, predictions)
         mape = mean_absolute_percentage_error(truth, predictions)
         smape = calculate_smape_numpy(truth, predictions)
-        cv_rsme = calculate_cv_rmse(truth, predictions)
+        cv_rmse = calculate_cv_rmse(truth, predictions)
         rsmess = np.sqrt(np.mean((truth - predictions) ** 2))
 
         metrics_per_24h.append(
@@ -116,7 +121,7 @@ def main(model_path: str, input_len=input_len, forecast_len=forecast_len, df_tes
             'R2': r2,
             'MAPE': mape,
             'SMAPE': smape,
-            'CV-RSME': cv_rsme,
+            'CV-RSME': cv_rmse,
             'RSME': rsmess
             }
             )
@@ -144,12 +149,17 @@ def main(model_path: str, input_len=input_len, forecast_len=forecast_len, df_tes
     }
 
     # Convert metrics_per_24h to DataFrame for easier analysis and visualization
-    metrics_df = pd.DataFrame(metrics_per_24h)
-    os.makedirs("Metrics", exist_ok=True)
-    metrics_df.to_csv(os.path.join("Metrics", f'evaluation_metrics_per24_{model_path}.csv'))
-    pd.DataFrame(metrics_overall).to_csv(os.path.join("Metrics", f'overall_metrics_{model_path}.csv'))
+    df_metrics_24 = pd.DataFrame(metrics_per_24h)
+    overall_metrics = pd.DataFrame(metrics_overall, index=[0])
 
-    metrics_df.plot(x='start', y=['MSE', 'MAE', 'R2'], subplots=True, figsize=(12, 8),
+    metric_file = model_path.split('/')[1]
+    metric_file = metric_file.strip().replace(" ", "_")
+
+    os.makedirs("Metrics", exist_ok=True)
+    df_metrics_24.to_csv(os.path.join("Metrics", f"evaluation_metrics_per24_{metric_file}.csv"), index=True)
+    overall_metrics.to_csv(os.path.join("Metrics", f'overall_metrics_{metric_file}.csv'), index=True)
+
+    df_metrics_24.plot(x='start', y=['MSE', 'MAE', 'R2'], subplots=True, figsize=(12, 8),
                     title='Evaluation Metrics for Each 24-Hour Prediction Set')
     plt.show()
 
