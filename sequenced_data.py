@@ -40,7 +40,7 @@ class SequencedData():
         self.buffer_length = self.total_window_size
         self.supplementary_feature = n_supplementary_features
         self.total_features = len(self.column_indices)
-        self.determanistic_feature = self.total_features - self.supplementary_feature
+        self.deterministic_feature = self.total_features - self.supplementary_feature
 
     def make_dataset(self, data):
         """Creates a TensorFlow dataset from input data with specified sequence settings."""
