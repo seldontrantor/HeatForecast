@@ -117,7 +117,7 @@ class SequencedData():
 # Instantiate and inspect data shapes
 BATCH_SIZE = 32
 Window_Gen = SequencedData(
-    input_width=24*2*7,
+    input_width=336,
     label_width=24,
     SHIFT=1,
     train_df=df_norm_train,
@@ -132,13 +132,16 @@ Window_Gen = SequencedData(
 windowed_train = Window_Gen.train()
 windowed_val = Window_Gen.val()
 windowed_test = Window_Gen.test()
+input_len = Window_Gen.input_width
+forecast_len = Window_Gen.label_width
 
-for (enc, dec_in), dec_out in windowed_train.take(1):
-    print('All shapes are: (batch, time, features)')
-    print(f'Encoder inputs shape: {enc.shape}')
-    print(f'Decoder inputs shape: {dec_in.shape}')
-    print(f'Decoder outputs shape: {dec_out.shape}')
-    print("-*-*-*-*-*")
-
-input_shape = enc.shape[1:]
-output_shape = dec_in.shape[1:]
+if __name__=="__main__":
+    print("Input length: ", input_len)
+    print("Forecast length: ", forecast_len)
+    print("Batch size: ", BATCH_SIZE)
+    print("Total features: ", Window_Gen.total_features)
+    print("Determanistic features: ", Window_Gen.determanistic_feature)
+    print("Label columns: ", Window_Gen.label_columns)
+    print("Label columns indices: ", Window_Gen.label_columns_indices)
+    print("Column indices: ", Window_Gen.column_indices)
+    print("Total window size: ", Window_Gen.total_window_size)
