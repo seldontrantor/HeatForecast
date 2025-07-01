@@ -1,18 +1,22 @@
-import os
 import argparse
-from sklearn.metrics import r2_score, mean_absolute_error, mean_squared_error, mean_absolute_percentage_error
+import os
+
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 import seaborn as sns
 import tensorflow as tf
+from sklearn.metrics import (
+    mean_absolute_error,
+    mean_absolute_percentage_error,
+    mean_squared_error,
+    r2_score,
+)
+
 from sequenced_data import load_default_data
-
-
 
 sns.set_theme(style="dark")
 sns.set(rc={"figure.figsize": (16, 8), "figure.dpi": 300})
-
 
 
 def get_latest_model_path(weights_dir: str = "weights") -> str:
@@ -66,6 +70,7 @@ def calculate_cv_rmse(y_true: np.ndarray, y_pred: np.ndarray) -> float:
         return np.nan
     return (rmse / mean_obs) * 100
 
+
 def main(model_path: str):
     data = load_default_data()
     input_len = data["input_len"]
@@ -88,11 +93,15 @@ def main(model_path: str):
         future_window = df_test[end:next_end]
 
         # Reshape the data to fit the model's input shape
-        past_window_input = past_window.values.reshape((1, input_len, past_window.shape[1]))
+        past_window_input = past_window.values.reshape(
+            (1, input_len, past_window.shape[1])
+        )
 
         # Extract future deterministic features for the forecast period
         future_inputs = future_window.iloc[:, 1:]
-        future_inputs = future_inputs.values.reshape((1, forecast_len, future_inputs.shape[1]))
+        future_inputs = future_inputs.values.reshape(
+            (1, forecast_len, future_inputs.shape[1])
+        )
 
         # Make predictions
         predictions = model.predict([past_window_input, future_inputs])
@@ -100,7 +109,9 @@ def main(model_path: str):
         # Flatten predictions and store them
         predictions = predictions.flatten()
         all_predictions.extend(predictions)
-        truth = future_window['Demand'].values.flatten()  # Assuming 'Demand' is the target variable
+        truth = future_window[
+            "Demand"
+        ].values.flatten()  # Assuming 'Demand' is the target variable
         all_truth.extend(truth)
 
         # Calculate metrics for this 24-hour prediction set
@@ -114,17 +125,17 @@ def main(model_path: str):
 
         metrics_per_24h.append(
             {
-            'start': start,
-            'end': next_end,
-            'MSE': mse,
-            'MAE': mae,
-            'R2': r2,
-            'MAPE': mape,
-            'SMAPE': smape,
-            'CV-RMSE': cv_rmse,
-            'RMSE': rsmess
+                "start": start,
+                "end": next_end,
+                "MSE": mse,
+                "MAE": mae,
+                "R2": r2,
+                "MAPE": mape,
+                "SMAPE": smape,
+                "CV-RMSE": cv_rmse,
+                "RMSE": rsmess,
             }
-            )
+        )
 
     # Convert predictions and truth values to numpy arrays for evaluation
     all_predictions = np.array(all_predictions)
@@ -141,30 +152,41 @@ def main(model_path: str):
     metrics_overall = {
         "overall_mse": overall_mse,
         "overall_mae": overall_mae,
-        "overall_rmse":  overall_rsme,
+        "overall_rmse": overall_rsme,
         "overall_mape": overall_mape,
         "overall_smape": overall_smape,
         "overall_cv_rmse": overall_cv_rsme,
-        "r2": overall_r2
+        "r2": overall_r2,
     }
 
     # Convert metrics_per_24h to DataFrame for easier analysis and visualization
     df_metrics_24 = pd.DataFrame(metrics_per_24h)
     overall_metrics = pd.DataFrame(metrics_overall, index=[0])
 
-    metric_file = model_path.split('/')[1]
+    metric_file = model_path.split("/")[1]
     metric_file = metric_file.strip().replace(" ", "_")
 
     os.makedirs("Metrics", exist_ok=True)
-    df_metrics_24.to_csv(os.path.join("Metrics", f"evaluation_metrics_per24_{metric_file}.csv"), index=True)
-    overall_metrics.to_csv(os.path.join("Metrics", f'overall_metrics_{metric_file}.csv'), index=True)
+    df_metrics_24.to_csv(
+        os.path.join("Metrics", f"evaluation_metrics_per24_{metric_file}.csv"),
+        index=True,
+    )
+    overall_metrics.to_csv(
+        os.path.join("Metrics", f"overall_metrics_{metric_file}.csv"), index=True
+    )
 
-    df_metrics_24.plot(x='start', y=['MSE', 'MAE', 'R2'], subplots=True, figsize=(12, 8),
-                    title='Evaluation Metrics for Each 24-Hour Prediction Set')
+    df_metrics_24.plot(
+        x="start",
+        y=["MSE", "MAE", "R2"],
+        subplots=True,
+        figsize=(12, 8),
+        title="Evaluation Metrics for Each 24-Hour Prediction Set",
+    )
 
     plt.tight_layout()
     plt.savefig(os.path.join("Metrics", f"{metric_file}.png"))
     plt.show()
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
