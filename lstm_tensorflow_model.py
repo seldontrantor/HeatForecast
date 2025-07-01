@@ -75,8 +75,13 @@ os.makedirs(os.path.join("weights", run_time), exist_ok=True)
 
 callbacks_list = [
     TensorBoard(log_dir=os.path.join("logs", run_time), histogram_freq=1, profile_batch='10,30'),
-    ModelCheckpoint(os.path.join("weights", run_time, "weights-improvement-{epoch:02d}-{loss:.2f}.keras"), monitor='loss', verbose=1, save_best_only=False, mode='max'),
-    EarlyStopping(monitor='loss', patience=8)
+    ModelCheckpoint(os.path.join("weights", run_time,
+                                 "weights-improvement-{epoch:02d}-{loss:.2f}.keras"),
+                    monitor='loss',
+                    verbose=1,
+                    save_best_only=False,  # Save after every epoch
+                    mode='min' ), # Use 'min' since we want to minimize the loss
+    EarlyStopping(monitor='loss', patience=8) # Stop early if loss doesn't improve
 ]
 
 nEpoch = 3
