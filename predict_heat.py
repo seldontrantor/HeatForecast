@@ -121,8 +121,8 @@ def main(model_path: str):
             'R2': r2,
             'MAPE': mape,
             'SMAPE': smape,
-            'CV-RSME': cv_rmse,
-            'RSME': rsmess
+            'CV-RMSE': cv_rmse,
+            'RMSE': rsmess
             }
             )
 
