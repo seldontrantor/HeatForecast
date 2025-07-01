@@ -13,19 +13,13 @@ from keras.layers import LSTM, Dense, Input
 from keras.callbacks import EarlyStopping, ModelCheckpoint, TensorBoard
 from sequenced_data import load_default_data
 from utils.lstm_utils import save_model_artifacts, plot_training_history, evaluate_model
+import argparse
 
 sns.set_theme(style="dark")
 sns.set(rc={"figure.figsize": (16, 8), "figure.dpi": 300})
 
 n_units = 50
-learning_rate = 0.0013
 loss_fun = 'mean_squared_error'
-
-lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(
-    initial_learning_rate=learning_rate,
-    decay_steps=10000,
-    decay_rate=0.9
-)
 
 def define_models_dense(input_shape, output_shape, n_units=n_units):
     encoder_inputs = Input(shape=input_shape, name='past inputs')
@@ -54,7 +48,10 @@ def define_models_dense(input_shape, output_shape, n_units=n_units):
     decoder_model = Model([decoder_inputs] + decoder_states_inputs, [decoder_outputs, state_h, state_c])
 
     return model, encoder_model, decoder_model
-def main():
+
+
+def main(nepoch,learning_rate):
+
     data = load_default_data()
     Window_Gen = data["Window_Gen"]
     windowed_train = data["windowed_train"]
@@ -65,7 +62,17 @@ def main():
     BATCH_SIZE = data["BATCH_SIZE"]
     scaler = data["scaler"]
 
+    print(f"Training model with {nepoch} epochs and learning rate of {learning_rate}")
+    print(f"Training model with input shape {input_shape} and output shape of {output_shape}")
+    print(f"Training model with batch size of {BATCH_SIZE}")
+
     model, encoder_model, decoder_model = define_models_dense(input_shape, output_shape)
+
+    lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(
+        initial_learning_rate=learning_rate,
+        decay_steps=10000,
+        decay_rate=0.9
+    )
 
     model.compile(
         optimizer=tf.optimizers.Adam(learning_rate=lr_schedule),
@@ -83,7 +90,7 @@ def main():
         EarlyStopping(monitor='loss', patience=8)
     ]
 
-    nEpoch = 3
+    nEpoch = nepoch
     history = model.fit(windowed_train, epochs=nEpoch, validation_data=windowed_val, verbose=True,
                         shuffle=False, callbacks=callbacks_list)
 
@@ -104,4 +111,22 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(
+        description="Train a LSTM model on the default dataset"
+    )
+    parser.add_argument(
+        "--nepoch",
+        type=int,
+        default=250,
+        help="Number of epochs to train the model (default: 100)",
+    )
+    parser.add_argument(
+        "--learning_rate",
+        type=float,
+        default=0.0013,
+        help="Learning rate for the optimizer (default: 0.0013)",
+    )
+    args = parser.parse_args()
+    nepoch = args.nepoch
+    learning_rate = args.learning_rate
+    main(nepoch, learning_rate)

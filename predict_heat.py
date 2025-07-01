@@ -161,8 +161,10 @@ def main(model_path: str):
 
     df_metrics_24.plot(x='start', y=['MSE', 'MAE', 'R2'], subplots=True, figsize=(12, 8),
                     title='Evaluation Metrics for Each 24-Hour Prediction Set')
-    plt.show()
 
+    plt.tight_layout()
+    plt.savefig(os.path.join("Metrics", f"{metric_file}.png"))
+    plt.show()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
