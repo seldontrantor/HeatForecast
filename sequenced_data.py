@@ -161,7 +161,7 @@ if __name__ == "__main__":
     print("Forecast length: ", data["forecast_len"])
     print("Batch size: ", data["BATCH_SIZE"])
     print("Total features: ", Window_Gen.total_features)
-    print("Determanistic features: ", Window_Gen.determanistic_feature)
+    print("Deterministic features: ", Window_Gen.deterministic_feature)
     print("Label columns: ", Window_Gen.label_columns)
     print("Label columns indices: ", Window_Gen.label_columns_indices)
     print("Column indices: ", Window_Gen.column_indices)
