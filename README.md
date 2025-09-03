@@ -83,7 +83,8 @@ Metrics for each 24 hour period and the overall results are written to CSV files
 
 When training completes an example forecast plot is produced similar to the one below.
 
-![Forecast Example](weights/07-Feb-2024-16-36-32/1-1.png)
+![Forecast Example](Metrics/sample_prediction_10.png)
+![Forecast Example](Metrics/sample_prediction_10_1.png)
 
 ## Dataset description
 
