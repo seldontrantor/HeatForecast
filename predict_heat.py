@@ -188,6 +188,56 @@ def main(model_path: str):
     plt.show()
 
 
+    Window_Gen = data["Window_Gen"]
+    sample_prediction_dataset = Window_Gen.test()
+    take = np.random.randint(0, 8000)
+    taken_batch = take
+    # Iterate over the selected sample from the dataset
+    for data in sample_prediction_dataset.take(take):
+        (sample_past, sample_future), sample_truth = data
+
+        pred = model.predict((sample_past, sample_future))
+
+    # Set inputs and labels for visualization
+    inputs = sample_past
+    labels = sample_truth
+
+    max_n = 3
+
+    # Create subplots for each sample
+    for n in range(max_n):
+        plt.subplot(max_n, 1, n + 1)
+        plt.ylabel('Demand[Normalized]')
+
+        # Retain original slicing for inputs
+        plt.plot(np.arange(input_len)[slice(0, input_len)], inputs[n, :, 0],
+                 label='Inputs', marker='.', zorder=-10)
+
+        # Retain original slicing for labels
+        plt.scatter(np.arange(input_len + forecast_len)[slice(input_len, input_len + forecast_len)],
+                    labels[n, :, ],
+                    edgecolors='k', label='Labels', c='#2ca02c', s=64)
+
+        # Use predictions for scatter plot
+        plt.scatter(np.arange(input_len + forecast_len)[slice(input_len, input_len + forecast_len)],
+                    pred[n, :, 0],
+                    marker='X', edgecolors='k', label='Predictions',
+                    c='#ff7f0e', s=64)
+
+        plt.xlabel('Time Step')
+        plt.title(f'Sample {n + 1}')  # Title for each subplot
+
+    # Add legend and adjust layout
+    plt.legend()
+    plt.tight_layout()
+    plt.subplots_adjust(top=0.9)
+    plt.suptitle(f'Taken batch from {taken_batch}', y=1.05)
+
+
+    plt.savefig(os.path.join("Metrics", f"sample_prediction_{metric_file}.png"), bbox_inches='tight')
+    plt.show()
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Predict heat demand using a saved model"
