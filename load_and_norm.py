@@ -7,51 +7,6 @@ from sklearn.preprocessing import MinMaxScaler
 sns.set_theme(style="dark")
 sns.set(rc={"figure.figsize": (16, 8), "figure.dpi": 300})
 
-# Load and preprocess data
-file_path = "datasets/df_sin_cosing.csv"
-assert os.path.exists(file_path), f"File not found: {file_path}"
-df = pd.read_csv(file_path, parse_dates=[0, 15], index_col=0)
-df.drop(["date", "weekday"], axis=1, inplace=True)
-df = df.astype("float64")
-
-# Configuration
-future_importance = True
-
-# Drop irrelevant or future-unknown features
-if future_importance:
-    df.drop(
-        [
-            "quarter",
-            "sin_dow",
-            "cos_dow",
-            "sin_dom",
-            "cos_dom",
-            "sin_year",
-            "cos_year",
-            "solar",
-            "Holidays",
-            "wind",
-            "humid",
-            "sin_doy",
-            "cos_doy",
-            "sin_month",
-            "cos_month",
-            "sin_woy",
-            "cos_woy",
-        ],
-        axis=1,
-        inplace=True,
-    )
-
-# Split the data manually
-train_dfs = df.iloc[:8760, :]
-val_dfs = df.iloc[8760 : 8760 * 2, :]
-test_dfs = df.iloc[8760 * 2 :, :]
-
-# Columns to normalize
-normalized_x = ["Demand", "Temp"]
-scaler = MinMaxScaler()
-
 def norm_data(
     train_df,
     test_df,
