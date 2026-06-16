@@ -104,14 +104,17 @@ def main(nepoch, learning_rate):
         ),
         ModelCheckpoint(
             os.path.join(
-                "weights", run_time, "weights-improvement-{epoch:02d}-{loss:.2f}.keras"
+                "weights", run_time, "best-{epoch:02d}-{val_loss:.2f}.keras"
             ),
-            monitor="loss",
+            monitor="val_loss",
             verbose=1,
-            save_best_only=False,
-            mode="max",
+            save_best_only=True,
+            mode="min",
         ),
-        EarlyStopping(monitor="loss", patience=8),
+        EarlyStopping(monitor="val_loss",
+                      patience=8,
+                      restore_best_weights=True,
+        ),
     ]
 
     nEpoch = nepoch
