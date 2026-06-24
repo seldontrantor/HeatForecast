@@ -33,3 +33,4 @@ Thumbs.db
 *.pdf
 *.png
 *.csv
+.vscode/settings.json
